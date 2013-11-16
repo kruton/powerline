@@ -23,7 +23,7 @@ class TestParser(TestCase):
 			err.truncate(0)
 		with replace_attr(sys, 'stdout', out, 'stderr', err):
 			for raising_args, raising_reg in [
-				([],                                     'too few arguments'),
+				([],                                     'too few arguments|the following arguments are required: ext'),
 				(['-r'],                                 'expected one argument'),
 				(['shell', '-r'],                        'expected one argument'),
 				(['shell', '-w'],                        'expected one argument'),
@@ -39,7 +39,7 @@ class TestParser(TestCase):
 				(['shell', '--theme_option'],            'expected one argument'),
 				(['shell', '--config_path'],             'expected one argument'),
 				(['shell', '--renderer_arg'],            'expected one argument'),
-				(['-r', 'zsh_prompt'],                   'too few arguments'),
+				(['-r', 'zsh_prompt'],                   'too few arguments|the following arguments are required: ext'),
 				(['shell', '--last_exit_code', 'i'],     'invalid int value'),
 				(['shell', '--last_pipe_status', '1 i'], 'invalid <lambda> value'),
 				(['shell', '-R', 'abc'],                 'invalid <lambda> value'),
