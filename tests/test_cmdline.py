@@ -7,14 +7,17 @@ from powerline.shell import get_argparser, finish_args
 from tests import TestCase
 from tests.lib import replace_attr
 import sys
-from io import BytesIO
+if sys.version_info < (3,):
+	from io import BytesIO as StrIO
+else:
+	from io import StringIO as StrIO  # NOQA
 
 
 class TestParser(TestCase):
 	def test_main_err(self):
 		parser = get_argparser()
-		out = BytesIO()
-		err = BytesIO()
+		out = StrIO()
+		err = StrIO()
 		def flush():
 			out.truncate(0)
 			err.truncate(0)
@@ -48,8 +51,8 @@ class TestParser(TestCase):
 
 	def test_main_normal(self):
 		parser = get_argparser()
-		out = BytesIO()
-		err = BytesIO()
+		out = StrIO()
+		err = StrIO()
 		with replace_attr(sys, 'stdout', out, 'stderr', err):
 			for argv, expargs in [
 				(['shell'],                     {'ext': ['shell']}),
