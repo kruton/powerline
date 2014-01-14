@@ -104,10 +104,10 @@ def cwd(pl, segment_info, dir_shorten_len=None, dir_limit_depth=None, use_path_s
 		cwd = re.sub('^' + re.escape(home), '~', cwd, 1)
 	cwd_split = cwd.split(os.sep)
 	cwd_split_len = len(cwd_split)
-	if dir_limit_depth and cwd_split_len > dir_limit_depth + 1:
-		del(cwd_split[0:-dir_limit_depth])
-		cwd_split.insert(0, '⋯')
 	cwd = [i[0:dir_shorten_len] if dir_shorten_len and i else i for i in cwd_split[:-1]] + [cwd_split[-1]]
+	if dir_limit_depth and cwd_split_len > dir_limit_depth + 1:
+		del(cwd[0:-dir_limit_depth])
+		cwd.insert(0, '⋯')
 	ret = []
 	if not cwd[0]:
 		cwd[0] = '/'
@@ -335,10 +335,10 @@ class WeatherSegment(ThreadedSegment):
 			# Do not lock attribute assignments in this branch: they are used 
 			# only in .update()
 			if not self.location:
-				location_data = json.loads(urllib_read('http://freegeoip.net/json/' + _external_ip()))
+				location_data = json.loads(urllib_read('http://freegeoip.net/json/'))
 				self.location = ','.join([location_data['city'],
-											location_data['region_name'],
-											location_data['country_name']])
+											location_data['region_code'],
+											location_data['country_code']])
 			query_data = {
 				'q':
 				'use "http://github.com/yql/yql-tables/raw/master/weather/weather.bylocation.xml" as we;'
@@ -591,8 +591,11 @@ username = False
 _geteuid = getattr(os, 'geteuid', lambda: 1)
 
 
-def user(pl, segment_info=None):
+def user(pl, segment_info=None, hide_user=None):
 	'''Return the current user.
+
+	:param str hide_user:
+		will suppress display of username if it matches the given string
 
 	Highlights the user with the ``superuser`` if the effective user ID is 0.
 
@@ -603,6 +606,8 @@ def user(pl, segment_info=None):
 		username = _get_user(segment_info)
 	if username is None:
 		pl.warn('Failed to get username')
+		return None
+	if username == hide_user:
 		return None
 	euid = _geteuid()
 	return [{

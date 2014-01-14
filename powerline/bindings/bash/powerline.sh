@@ -1,14 +1,17 @@
 if test -z "${POWERLINE_COMMAND}" ; then
 	if which powerline-client &>/dev/null ; then
 		export POWERLINE_COMMAND=powerline-client
-	else
+	elif which powerline &>/dev/null ; then
 		export POWERLINE_COMMAND=powerline
+	else
+		# `$0` is set to `-bash` when using SSH so that won't work
+		export POWERLINE_COMMAND="$(dirname "$BASH_SOURCE")/../../../scripts/powerline"
 	fi
 fi
 
 _powerline_tmux_setenv() {
 	if [[ -n "$TMUX" ]]; then
-		tmux setenv -g TMUX_"$1"_$(tmux display -p "#D" | tr -d %) "$2"
+		tmux setenv -g TMUX_"$1"_`tmux display -p "#D" | tr -d %` "$2"
 		tmux refresh -S
 	fi
 }
@@ -30,7 +33,7 @@ _powerline_prompt() {
 	local last_exit_code=$?
 	[[ -z "$POWERLINE_OLD_PROMPT_COMMAND" ]] ||
 		eval $POWERLINE_OLD_PROMPT_COMMAND
-	PS1="$($POWERLINE_COMMAND shell left -r bash_prompt --last_exit_code=$last_exit_code)"
+	PS1="$($POWERLINE_COMMAND shell left -r bash_prompt --last_exit_code=$last_exit_code --jobnum="$(jobs|wc-l)")"
 	_powerline_tmux_set_pwd
 	return $last_exit_code
 }
@@ -38,6 +41,6 @@ _powerline_prompt() {
 trap "_powerline_tmux_set_columns" SIGWINCH
 _powerline_tmux_set_columns
 
-[[ "$PROMPT_COMMAND" == "_powerline_prompt" ]] ||
+[[ "$PROMPT_COMMAND" != "${PROMPT_COMMAND/_powerline_prompt/}" ]] ||
 	POWERLINE_OLD_PROMPT_COMMAND="$PROMPT_COMMAND"
 export PROMPT_COMMAND="_powerline_prompt"

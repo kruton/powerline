@@ -82,6 +82,10 @@ Other applications
 Installation
 ============
 
+.. note:: This project is currently unavailable from PyPI due to a naming conflict 
+   with an unrelated project. Please read the detailed instructions for your platform
+   below.
+
 * :ref:`installation-linux`
 * :ref:`installation-osx`
 
@@ -145,9 +149,6 @@ absolute path to your Powerline installation directory:
 .. code-block:: bash
 
    . {repository_root}/powerline/bindings/zsh/powerline.zsh
-
-If you are not satisfied with powerline speed in this case, compile zpython 
-branch from https://bitbucket.org/ZyX_I/zsh.
 
 Tmux statusline
 ---------------
