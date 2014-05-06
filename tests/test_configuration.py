@@ -23,11 +23,15 @@ class TestConfig(TestCase):
 			(('bufoptions',), {'buftype': 'help'}),
 			(('bufname', '[Command Line]'), {}),
 			(('bufoptions',), {'buftype': 'quickfix'}),
+			(('bufname', 'NERD_tree_1'), {}),
+			(('bufname', '__Gundo__'), {}),
+			(('bufname', '__Gundo_Preview__'), {}),
+			(('bufname', 'ControlP'), {}),
 		)
 		with open(os.path.join(cfg_path, 'config.json'), 'r') as f:
 			local_themes_raw = json.load(f)['ext']['vim']['local_themes']
 			# Don't run tests on external/plugin segments
-			local_themes = dict((k, v) for (k, v) in local_themes_raw.items() if not '.' in k)
+			local_themes = dict((k, v) for (k, v) in local_themes_raw.items())
 			self.assertEqual(len(buffers), len(local_themes))
 		outputs = {}
 		i = 0
@@ -58,6 +62,10 @@ class TestConfig(TestCase):
 									i += 1
 									if mode in exclude:
 										continue
+									if mode == 'nc' and args == ('bufname', 'ControlP'):
+										# ControlP window is not supposed to not 
+										# be in the focus
+										continue
 									with vim_module._with(*args, **kwargs):
 										check_output(mode, args, kwargs)
 						finally:
@@ -77,10 +85,18 @@ class TestConfig(TestCase):
 	def test_zsh(self):
 		from powerline.shell import ShellPowerline
 		args = Args(last_pipe_status=[1, 0], jobnum=0, ext=['shell'], renderer_module='zsh_prompt')
+		segment_info = {'args': args}
 		with ShellPowerline(args, run_once=False) as powerline:
-			powerline.render(segment_info={'args': args})
+			powerline.render(segment_info=segment_info)
 		with ShellPowerline(args, run_once=False) as powerline:
-			powerline.render(segment_info={'args': args})
+			powerline.render(segment_info=segment_info)
+		segment_info['local_theme'] = 'select'
+		with ShellPowerline(args, run_once=False) as powerline:
+			powerline.render(segment_info=segment_info)
+		segment_info['local_theme'] = 'continuation'
+		segment_info['parser_state'] = 'if cmdsubst'
+		with ShellPowerline(args, run_once=False) as powerline:
+			powerline.render(segment_info=segment_info)
 
 	def test_bash(self):
 		from powerline.shell import ShellPowerline

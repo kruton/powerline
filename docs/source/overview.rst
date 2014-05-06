@@ -73,6 +73,7 @@ Python packages
 * ``pygit2``
 * ``mercurial``
 * ``psutil``
+* ``i3-py``, `available on github <https://github.com/ziberna/i3-py>`_. Only used with i3wm bindings and segments.
 
 Other applications
 ^^^^^^^^^^^^^^^^^^
@@ -92,10 +93,12 @@ Installation
 Usage
 =====
 
+.. _vim-vimrc:
+
 Vim statusline
 --------------
 
-If installed using pip just use
+If installed using pip just add
 
 .. code-block:: vim
 
@@ -103,7 +106,7 @@ If installed using pip just use
     python powerline_setup()
     python del powerline_setup
 
-(replace ``python`` with ``python3`` if appropriate).
+(replace ``python`` with ``python3`` if appropriate) to your :file:`vimrc`.
 
 If you just cloned the repository add the following line to your :file:`vimrc`, 
 where ``{repository_root}`` is the absolute path to your Powerline installation 
@@ -149,6 +152,17 @@ absolute path to your Powerline installation directory:
 .. code-block:: bash
 
    . {repository_root}/powerline/bindings/zsh/powerline.zsh
+
+Fish prompt
+^^^^^^^^^^^
+
+Add the following line to your :file:`config.fish`, where ``{repository_root}`` 
+is the absolute path to your Powerline installation directory:
+
+.. code-block:: bash
+
+   set fish_function_path $fish_function_path "{repository_root}/powerline/bindings/fish"
+   powerline-setup
 
 Tmux statusline
 ---------------
@@ -222,3 +236,22 @@ Add the following to your :file:`~/.config/qtile/config.py`:
            ),
        ),
    ]
+
+I3 bar
+------
+
+.. note:: Until the patch is done in i3, you will need a custom ``i3bar`` build
+          called ``i3bgbar``. The source is available `here 
+          <https://github.com/S0lll0s/i3bgbar>`_.
+
+Add the following to your :file:`~/.i3/config`::
+
+    bar {
+        i3bar_command i3bgbar
+
+        status_command python /path/to/powerline/bindings/i3/powerline-i3.py
+        font pango:PowerlineFont 12
+    }
+
+where ``i3bgbar`` may be replaced with the path to the custom i3bar binary and 
+``PowerlineFont`` is any system font with powerline support.

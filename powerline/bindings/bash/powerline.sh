@@ -1,46 +1,58 @@
-if test -z "${POWERLINE_COMMAND}" ; then
-	if which powerline-client &>/dev/null ; then
-		export POWERLINE_COMMAND=powerline-client
-	elif which powerline &>/dev/null ; then
-		export POWERLINE_COMMAND=powerline
+_powerline_init_tmux_support() {
+	if test -n "$TMUX" && tmux refresh -S &>/dev/null ; then
+		# TMUX variable may be unset to create new tmux session inside this one
+		_POWERLINE_TMUX="$TMUX"
+
+		_powerline_tmux_setenv() {
+			TMUX="$_POWERLINE_TMUX" tmux setenv -g TMUX_"$1"_`tmux display -p "#D" | tr -d %` "$2"
+			TMUX="$_POWERLINE_TMUX" tmux refresh -S
+		}
+
+		_powerline_tmux_set_pwd() {
+			if test "x$_POWERLINE_SAVED_PWD" != "x$PWD" ; then
+				_POWERLINE_SAVED_PWD="$PWD"
+				_powerline_tmux_setenv PWD "$PWD"
+			fi
+		}
+
+		_powerline_tmux_set_columns() {
+			_powerline_tmux_setenv COLUMNS "$COLUMNS"
+		}
+
+		trap "_powerline_tmux_set_columns" SIGWINCH
+		_powerline_tmux_set_columns
 	else
-		# `$0` is set to `-bash` when using SSH so that won't work
-		export POWERLINE_COMMAND="$(dirname "$BASH_SOURCE")/../../../scripts/powerline"
+		_powerline_tmux_set_pwd() {
+			return 0
+		}
 	fi
-fi
-
-_powerline_tmux_setenv() {
-	if [[ -n "$TMUX" ]]; then
-		tmux setenv -g TMUX_"$1"_`tmux display -p "#D" | tr -d %` "$2"
-		tmux refresh -S
-	fi
-}
-
-POWERLINE_SAVED_PWD=
-
-_powerline_tmux_set_pwd() {
-	if test "x$POWERLINE_SAVED_PWD" != "x$PWD" ; then
-		POWERLINE_SAVED_PWD="$PWD"
-		_powerline_tmux_setenv PWD "$PWD"
-	fi
-}
-
-_powerline_tmux_set_columns() {
-	_powerline_tmux_setenv COLUMNS "$COLUMNS"
 }
 
 _powerline_prompt() {
 	local last_exit_code=$?
-	[[ -z "$POWERLINE_OLD_PROMPT_COMMAND" ]] ||
-		eval $POWERLINE_OLD_PROMPT_COMMAND
-	PS1="$($POWERLINE_COMMAND shell left -r bash_prompt --last_exit_code=$last_exit_code --jobnum="$(jobs|wc-l)")"
+	PS1="$($POWERLINE_COMMAND shell left -r bash_prompt --last_exit_code=$last_exit_code --jobnum="$(jobs -p|wc -l)")"
 	_powerline_tmux_set_pwd
 	return $last_exit_code
 }
 
-trap "_powerline_tmux_set_columns" SIGWINCH
-_powerline_tmux_set_columns
+_powerline_setup_prompt() {
+	if test -z "${POWERLINE_COMMAND}" ; then
+		if which powerline-client &>/dev/null ; then
+			export POWERLINE_COMMAND=powerline-client
+		elif which powerline &>/dev/null ; then
+			export POWERLINE_COMMAND=powerline
+		else
+			# `$0` is set to `-bash` when using SSH so that won't work
+			export POWERLINE_COMMAND="$(dirname "$BASH_SOURCE")/../../../scripts/powerline"
+		fi
+	fi
+	test "x$PROMPT_COMMAND" != "x${PROMPT_COMMAND%_powerline_prompt*}" ||
+		export PROMPT_COMMAND=$'_powerline_prompt\n'"${PROMPT_COMMAND}"
+}
 
-[[ "$PROMPT_COMMAND" != "${PROMPT_COMMAND/_powerline_prompt/}" ]] ||
-	POWERLINE_OLD_PROMPT_COMMAND="$PROMPT_COMMAND"
-export PROMPT_COMMAND="_powerline_prompt"
+if test -z "$POWERLINE_NO_BASH_PROMPT$POWERLINE_NO_SHELL_PROMPT" ; then
+	_powerline_setup_prompt
+fi
+if test -z "$POWERLINE_NO_BASH_TMUX_SUPPORT$POWERLINE_NO_SHELL_TMUX_SUPPORT" ; then
+	_powerline_init_tmux_support
+fi

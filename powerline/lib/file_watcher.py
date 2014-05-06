@@ -13,11 +13,12 @@ from threading import RLock
 from powerline.lib.monotonic import monotonic
 from powerline.lib.inotify import INotify, INotifyError
 
+
 def realpath(path):
 	return os.path.abspath(os.path.realpath(path))
 
-class INotifyWatch(INotify):
 
+class INotifyWatch(INotify):
 	is_stat_based = False
 
 	def __init__(self, expire_time=10):
@@ -54,7 +55,24 @@ class INotifyWatch(INotify):
 					self.modified.pop(path, None)
 					self.last_query.pop(path, None)
 				else:
-					self.modified[path] = True
+					if mask & self.ATTRIB:
+						# The watched file could have had its inode changed, in
+						# which case we will not get any more events for this
+						# file, so re-register the watch. For example by some
+						# other file being renamed as this file.
+						try:
+							self.unwatch(path)
+						except OSError:
+							pass
+						try:
+							self.watch(path)
+						except OSError as e:
+							if getattr(e, 'errno', None) != errno.ENOENT:
+								raise
+						else:
+							self.modified[path] = True
+					else:
+						self.modified[path] = True
 
 	def unwatch(self, path):
 		''' Remove the watch for path. Raises an OSError if removing the watch

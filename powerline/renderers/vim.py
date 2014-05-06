@@ -1,6 +1,6 @@
 # vim:fileencoding=utf-8:noet
 
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 from powerline.bindings.vim import vim_get_func, environ
 from powerline.renderer import Renderer
@@ -9,6 +9,12 @@ from powerline.theme import Theme
 
 import vim
 import sys
+
+
+try:
+	from __builtin__ import unichr as chr
+except ImportError:
+	pass
 
 
 vim_mode = vim_get_func('mode', rettype=str)
@@ -20,6 +26,9 @@ mode_translations = {
 
 class VimRenderer(Renderer):
 	'''Powerline vim segment renderer.'''
+
+	character_translations = Renderer.character_translations.copy()
+	character_translations[ord('%')] = '%%'
 
 	def __init__(self, *args, **kwargs):
 		if not hasattr(vim, 'strwidth'):
@@ -65,7 +74,7 @@ class VimRenderer(Renderer):
 			def strwidth(string):
 				return vim.strwidth(string)
 
-	def get_segment_info(self, segment_info):
+	def get_segment_info(self, segment_info, mode):
 		return segment_info or self.segment_info
 
 	def render(self, window, window_id, winnr):
@@ -96,10 +105,6 @@ class VimRenderer(Renderer):
 
 	def reset_highlight(self):
 		self.hl_groups.clear()
-
-	@staticmethod
-	def escape(string):
-		return string.replace('%', '%%')
 
 	def hlstyle(self, fg=None, bg=None, attr=None):
 		'''Highlight a segment.
@@ -135,12 +140,12 @@ class VimRenderer(Renderer):
 					hl_group['attr'].append('italic')
 				if attr & ATTR_UNDERLINE:
 					hl_group['attr'].append('underline')
-			hl_group['name'] = 'Pl_' + \
-				str(hl_group['ctermfg']) + '_' + \
-				str(hl_group['guifg']) + '_' + \
-				str(hl_group['ctermbg']) + '_' + \
-				str(hl_group['guibg']) + '_' + \
-				''.join(hl_group['attr'])
+			hl_group['name'] = ('Pl_' +
+						str(hl_group['ctermfg']) + '_' +
+						str(hl_group['guifg']) + '_' +
+						str(hl_group['ctermbg']) + '_' +
+						str(hl_group['guibg']) + '_' +
+						''.join(hl_group['attr']))
 			self.hl_groups[(fg, bg, attr)] = hl_group
 			vim.command('hi {group} ctermfg={ctermfg} guifg={guifg} guibg={guibg} ctermbg={ctermbg} cterm={attr} gui={attr}'.format(
 				group=hl_group['name'],

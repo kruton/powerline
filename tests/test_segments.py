@@ -1,5 +1,7 @@
 # vim:fileencoding=utf-8:noet
 
+from __future__ import unicode_literals
+
 from powerline.segments import shell, common
 import tests.vim as vim_module
 import sys
@@ -46,6 +48,103 @@ class TestShell(TestCase):
 		self.assertEqual(shell.jobnum(pl=pl, segment_info=segment_info, show_zero=False), '1')
 		self.assertEqual(shell.jobnum(pl=pl, segment_info=segment_info, show_zero=True), '1')
 
+	def test_continuation(self):
+		pl = Pl()
+		self.assertEqual(shell.continuation(pl=pl, segment_info={}), None)
+		segment_info = {'parser_state': 'if cmdsubst'}
+		self.assertEqual(shell.continuation(pl=pl, segment_info=segment_info), [
+			{
+				'contents': 'if',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation:current',
+				'width': 'auto',
+				'align': 'l',
+			},
+		])
+		self.assertEqual(shell.continuation(pl=pl, segment_info=segment_info, right_align=True), [
+			{
+				'contents': 'if',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation:current',
+				'width': 'auto',
+				'align': 'r',
+			},
+		])
+		self.assertEqual(shell.continuation(pl=pl, segment_info=segment_info, omit_cmdsubst=False), [
+			{
+				'contents': 'if',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation',
+			},
+			{
+				'contents': 'cmdsubst',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation:current',
+				'width': 'auto',
+				'align': 'l',
+			},
+		])
+		self.assertEqual(shell.continuation(pl=pl, segment_info=segment_info, omit_cmdsubst=False, right_align=True), [
+			{
+				'contents': 'if',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation',
+				'width': 'auto',
+				'align': 'r',
+			},
+			{
+				'contents': 'cmdsubst',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation:current',
+			},
+		])
+		self.assertEqual(shell.continuation(pl=pl, segment_info=segment_info, omit_cmdsubst=True, right_align=True), [
+			{
+				'contents': 'if',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation:current',
+				'width': 'auto',
+				'align': 'r',
+			},
+		])
+		self.assertEqual(shell.continuation(pl=pl, segment_info=segment_info, omit_cmdsubst=True, right_align=True, renames={'if': 'IF'}), [
+			{
+				'contents': 'IF',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation:current',
+				'width': 'auto',
+				'align': 'r',
+			},
+		])
+		self.assertEqual(shell.continuation(pl=pl, segment_info=segment_info, omit_cmdsubst=True, right_align=True, renames={'if': None}), [
+			{
+				'contents': '',
+				'highlight_group': 'continuation:current',
+				'width': 'auto',
+				'align': 'r',
+			},
+		])
+		segment_info = {'parser_state': 'then then then cmdsubst'}
+		self.assertEqual(shell.continuation(pl=pl, segment_info=segment_info), [
+			{
+				'contents': 'then',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation',
+			},
+			{
+				'contents': 'then',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation',
+			},
+			{
+				'contents': 'then',
+				'draw_inner_divider': True,
+				'highlight_group': 'continuation:current',
+				'width': 'auto',
+				'align': 'l',
+			},
+		])
+
 
 class TestCommon(TestCase):
 	def test_hostname(self):
@@ -70,7 +169,18 @@ class TestCommon(TestCase):
 
 	def test_user(self):
 		new_os = new_module('os', getpid=lambda: 1)
-		new_psutil = new_module('psutil', Process=lambda pid: Args(username='def'))
+
+		class Process(object):
+			def __init__(self, pid):
+				pass
+
+			def username(self):
+				return 'def'
+
+			if hasattr(common, 'psutil') and not callable(common.psutil.Process.username):
+				username = property(username)
+
+		new_psutil = new_module('psutil', Process=Process)
 		pl = Pl()
 		with replace_env('USER', 'def') as segment_info:
 			common.username = False
@@ -147,8 +257,22 @@ class TestCommon(TestCase):
 				{'contents': '⋯', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': True},
 				{'contents': 'bar', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': True, 'highlight_group': ['cwd:current_folder', 'cwd']}
 			])
+			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, dir_limit_depth=1, ellipsis='...'), [
+				{'contents': '...', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': True},
+				{'contents': 'bar', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': True, 'highlight_group': ['cwd:current_folder', 'cwd']}
+			])
+			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, dir_limit_depth=1, ellipsis=None), [
+				{'contents': 'bar', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': True, 'highlight_group': ['cwd:current_folder', 'cwd']}
+			])
 			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, dir_limit_depth=1, use_path_separator=True), [
 				{'contents': '⋯/', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False},
+				{'contents': 'bar', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False, 'highlight_group': ['cwd:current_folder', 'cwd']}
+			])
+			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, dir_limit_depth=1, use_path_separator=True, ellipsis='...'), [
+				{'contents': '.../', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False},
+				{'contents': 'bar', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False, 'highlight_group': ['cwd:current_folder', 'cwd']}
+			])
+			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, dir_limit_depth=1, use_path_separator=True, ellipsis=None), [
 				{'contents': 'bar', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False, 'highlight_group': ['cwd:current_folder', 'cwd']}
 			])
 			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, dir_limit_depth=2, dir_shorten_len=2), [
@@ -160,6 +284,22 @@ class TestCommon(TestCase):
 				{'contents': '~/', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False},
 				{'contents': 'fo/', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False},
 				{'contents': 'bar', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False, 'highlight_group': ['cwd:current_folder', 'cwd']}
+			])
+			cwd[0] = '/etc'
+			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, use_path_separator=False), [
+				{'contents': '/', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': True},
+				{'contents': 'etc', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': True, 'highlight_group': ['cwd:current_folder', 'cwd']},
+			])
+			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, use_path_separator=True), [
+				{'contents': '/', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False},
+				{'contents': 'etc', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False, 'highlight_group': ['cwd:current_folder', 'cwd']},
+			])
+			cwd[0] = '/'
+			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, use_path_separator=False), [
+				{'contents': '/', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': True, 'highlight_group': ['cwd:current_folder', 'cwd']},
+			])
+			self.assertEqual(common.cwd(pl=pl, segment_info=segment_info, use_path_separator=True), [
+				{'contents': '/', 'divider_highlight_group': 'cwd:divider', 'draw_inner_divider': False, 'highlight_group': ['cwd:current_folder', 'cwd']},
 			])
 			ose = OSError()
 			ose.errno = 2
@@ -186,9 +326,13 @@ class TestCommon(TestCase):
 			time.minute = 59
 			self.assertEqual(common.fuzzy_time(pl=pl), 'round about midnight')
 			time.minute = 33
-			self.assertEqual(common.fuzzy_time(pl=pl), 'twenty-five to twelve')
+			self.assertEqual(common.fuzzy_time(pl=pl), 'twenty‐five to twelve')
 			time.minute = 60
-			self.assertEqual(common.fuzzy_time(pl=pl), 'twelve o\'clock')
+			self.assertEqual(common.fuzzy_time(pl=pl), 'twelve o’clock')
+			time.minute = 33
+			self.assertEqual(common.fuzzy_time(pl=pl, unicode_text=False), 'twenty-five to twelve')
+			time.minute = 60
+			self.assertEqual(common.fuzzy_time(pl=pl, unicode_text=False), 'twelve o\'clock')
 
 	def test_external_ip(self):
 		pl = Pl()
@@ -350,8 +494,8 @@ class TestCommon(TestCase):
 
 	def test_environment(self):
 		pl = Pl()
-		variable = 'FOO';
-		value = 'bar';
+		variable = 'FOO'
+		value = 'bar'
 		with replace_env(variable, value) as segment_info:
 			self.assertEqual(common.environment(pl=pl, segment_info=segment_info, variable=variable), value)
 			segment_info['environ'].pop(variable)
@@ -368,39 +512,54 @@ class TestCommon(TestCase):
 	def test_battery(self):
 		pl = Pl()
 
-		def _get_capacity():
+		def _get_capacity(pl):
 			return 86
 
 		with replace_attr(common, '_get_capacity', _get_capacity):
 			self.assertEqual(common.battery(pl=pl), [{
-				'contents': '80%',
+				'contents': '86%',
 				'highlight_group': ['battery_gradient', 'battery'],
-				'gradient_level': 80.0
+				'gradient_level': 86
 			}])
-			self.assertEqual(common.battery(pl=pl, format='{batt:.2f}'), [{
-				'contents': '0.80',
+			self.assertEqual(common.battery(pl=pl, format='{capacity:.2f}'), [{
+				'contents': '0.86',
 				'highlight_group': ['battery_gradient', 'battery'],
-				'gradient_level': 80.0
+				'gradient_level': 86
 			}])
 			self.assertEqual(common.battery(pl=pl, steps=7), [{
 				'contents': '86%',
 				'highlight_group': ['battery_gradient', 'battery'],
-				'gradient_level': 85.71428571428571
+				'gradient_level': 86
 			}])
 			self.assertEqual(common.battery(pl=pl, gamify=True), [
 				{
 					'contents': '♥♥♥♥',
-					'draw_soft_divider': False,
+					'draw_inner_divider': False,
 					'highlight_group': ['battery_gradient', 'battery'],
 					'gradient_level': 99
 				},
 				{
 					'contents': '♥',
-					'draw_soft_divider': False,
+					'draw_inner_divider': False,
 					'highlight_group': ['battery_gradient', 'battery'],
 					'gradient_level': 1
 				}
 			])
+			self.assertEqual(common.battery(pl=pl, gamify=True, full_heart='+', empty_heart='-', steps='10'), [
+				{
+					'contents': '++++++++',
+					'draw_inner_divider': False,
+					'highlight_group': ['battery_gradient', 'battery'],
+					'gradient_level': 99
+				},
+				{
+					'contents': '--',
+					'draw_inner_divider': False,
+					'highlight_group': ['battery_gradient', 'battery'],
+					'gradient_level': 1
+				}
+			])
+
 
 class TestVim(TestCase):
 	def test_mode(self):
@@ -451,6 +610,10 @@ class TestVim(TestCase):
 		segment_info = vim_module._get_segment_info()
 		self.assertEqual(vim.file_directory(pl=pl, segment_info=segment_info), None)
 		with replace_env('HOME', '/home/foo', os.environ):
+			with vim_module._with('buffer', '/tmp/’’/abc') as segment_info:
+				self.assertEqual(vim.file_directory(pl=pl, segment_info=segment_info), '/tmp/’’/')
+			with vim_module._with('buffer', b'/tmp/\xFF\xFF/abc') as segment_info:
+				self.assertEqual(vim.file_directory(pl=pl, segment_info=segment_info), '/tmp/<ff><ff>/')
 			with vim_module._with('buffer', '/tmp/abc') as segment_info:
 				self.assertEqual(vim.file_directory(pl=pl, segment_info=segment_info), '/tmp/')
 				os.environ['HOME'] = '/tmp'
@@ -468,6 +631,8 @@ class TestVim(TestCase):
 			self.assertEqual(vim.file_name(pl=pl, segment_info=segment_info), 'abc')
 		with vim_module._with('buffer', '/tmp/’’') as segment_info:
 			self.assertEqual(vim.file_name(pl=pl, segment_info=segment_info), '’’')
+		with vim_module._with('buffer', b'/tmp/\xFF\xFF') as segment_info:
+			self.assertEqual(vim.file_name(pl=pl, segment_info=segment_info), '<ff><ff>')
 
 	def test_file_size(self):
 		pl = Pl()
@@ -498,6 +663,27 @@ class TestVim(TestCase):
 			self.assertEqual(vim.line_percent(pl=pl, segment_info=segment_info), '50')
 			self.assertEqual(vim.line_percent(pl=pl, segment_info=segment_info, gradient=True),
 					[{'contents': '50', 'highlight_group': ['line_percent_gradient', 'line_percent'], 'gradient_level': 50 * 100.0 / 101}])
+		finally:
+			vim_module._bw(segment_info['bufnr'])
+
+	def test_position(self):
+		pl = Pl()
+		segment_info = vim_module._get_segment_info()
+		try:
+			segment_info['buffer'][0:-1] = [str(i) for i in range(99)]
+			vim_module._set_cursor(49, 0)
+			self.assertEqual(vim.position(pl=pl, segment_info=segment_info), '50%')
+			self.assertEqual(vim.position(pl=pl, segment_info=segment_info, gradient=True),
+					[{'contents': '50%', 'highlight_group': ['position_gradient', 'position'], 'gradient_level': 50.0}])
+			vim_module._set_cursor(0, 0)
+			self.assertEqual(vim.position(pl=pl, segment_info=segment_info), 'Top')
+			vim_module._set_cursor(97, 0)
+			self.assertEqual(vim.position(pl=pl, segment_info=segment_info, position_strings={'top': 'Comienzo', 'bottom': 'Final', 'all': 'Todo'}), 'Final')
+			segment_info['buffer'][0:-1] = [str(i) for i in range(2)]
+			vim_module._set_cursor(0, 0)
+			self.assertEqual(vim.position(pl=pl, segment_info=segment_info, position_strings={'top': 'Comienzo', 'bottom': 'Final', 'all': 'Todo'}), 'Todo')
+			self.assertEqual(vim.position(pl=pl, segment_info=segment_info, gradient=True),
+					[{'contents': 'All', 'highlight_group': ['position_gradient', 'position'], 'gradient_level': 0.0}])
 		finally:
 			vim_module._bw(segment_info['bufnr'])
 

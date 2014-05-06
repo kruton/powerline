@@ -91,7 +91,7 @@ segments that you may want to customize right away:
            "name": "weather",
            "priority": 50,
            "args": {
-               "unit": "f",
+               "unit": "F",
                "location_query": "oslo, norway"
            }
        },
@@ -472,10 +472,16 @@ Powerline script has a number of options controlling powerline behavior. Here
     example: ``{"K1": V1, "K2": V2}``) is recursively merged with the contents 
     of the file.
 
+    If ``VALUE`` is omitted then corresponding key will be removed from the 
+    configuration (if it was present).
+
 ``-t THEME_NAME.KEY.NESTED_KEY=VALUE`` or ``--theme_option=THEME_NAME.KEY.NESTED_KEY=VALUE``
     Overrides options from :file:`powerline/themes/{ext}/{THEME_NAME}.json`. 
     ``KEY.NESTED_KEY=VALUE`` is processed like described above, ``{ext}`` is the 
     first argument to powerline script. May be passed multiple times.
+
+    If ``VALUE`` is omitted then corresponding key will be removed from the 
+    configuration (if it was present).
 
 ``-p PATH`` or ``--config_path=PATH``
     Sets directory where configuration should be read from. If present, no 
@@ -540,8 +546,28 @@ specific powerline implementation. This is mostly useful for putting powerline
 into different directory or replacing ``powerline`` script with 
 ``powerline-client`` for performance reasons.
 
-Note: ``$POWERLINE_COMMAND`` appears in shell scripts without quotes thus you 
-can specify additional parameters in bash. In zsh you will have to make 
-``$POWERLINE_COMMAND`` an array parameter to achieve the same result. In tmux it 
-is passed to ``eval`` and depends on the shell used. POSIX-compatible shells, 
-zsh, bash and fish will split this variable in this case.
+.. note::
+
+    ``$POWERLINE_COMMAND`` appears in shell scripts without quotes thus you can 
+    specify additional parameters in bash. In zsh you will have to make 
+    ``$POWERLINE_COMMAND`` an array parameter to achieve the same result. In 
+    tmux it is passed to ``eval`` and depends on the shell used. 
+    POSIX-compatible shells, zsh, bash and fish will split this variable in this 
+    case.
+
+If you want to disable prompt in shell, but still have tmux support or if you 
+want to disable tmux support you can use variables 
+``$POWERLINE_NO_{SHELL}_PROMPT``/``$POWERLINE_NO_SHELL_PROMPT`` and 
+``$POWERLINE_NO_{SHELL}_TMUX_SUPPORT``/``$POWERLINE_NO_SHELL_TMUX_SUPPORT`` 
+(substitute ``{SHELL}`` with the name of the shell (all-caps) you want to 
+disable support for (e.g. ``BASH``) or use all-inclusive ``SHELL`` that will 
+disable support for all shells). These variables have no effect after 
+configuration script was sourced (in fish case: after ``powerline-setup`` 
+function was run). To disable specific feature support set one of these 
+variables to some non-empty value.
+
+.. note::
+
+    Most supported shells’ configuration scripts check for additional 
+    configuration variables being empty. But tcsh configuration script checks 
+    for variables being *defined*, not empty.

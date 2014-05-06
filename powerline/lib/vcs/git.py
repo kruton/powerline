@@ -1,12 +1,16 @@
 # vim:fileencoding=utf-8:noet
 
+from __future__ import (unicode_literals, absolute_import, print_function)
+
 import os
+import sys
 import re
-import errno
 
 from powerline.lib.vcs import get_branch_name as _get_branch_name, get_file_status
 
+
 _ref_pat = re.compile(br'ref:\s*refs/heads/(.+)')
+
 
 def branch_name_from_config_file(directory, config_file):
 	try:
@@ -19,18 +23,26 @@ def branch_name_from_config_file(directory, config_file):
 		return m.group(1).decode('utf-8', 'replace')
 	return raw[:7]
 
+
 def git_directory(directory):
 	path = os.path.join(directory, '.git')
 	if os.path.isfile(path):
 		with open(path, 'rb') as f:
-			raw = f.read().partition(b':')[2].strip()
+			raw = f.read()
+			if not raw.startswith(b'gitdir: '):
+				raise IOError('invalid gitfile format')
+			raw = raw[8:].decode(sys.getfilesystemencoding() or 'utf-8')
+			if not raw:
+				raise IOError('no path in gitfile')
 			return os.path.abspath(os.path.join(directory, raw))
 	else:
 		return path
 
+
 def get_branch_name(base_dir):
 	head = os.path.join(git_directory(base_dir), 'HEAD')
 	return _get_branch_name(base_dir, head, branch_name_from_config_file)
+
 
 def do_status(directory, path, func):
 	if path:
@@ -43,11 +55,13 @@ def do_status(directory, path, func):
 			path, '.gitignore', func, extra_ignore_files=tuple(os.path.join(gitd, x) for x in ('logs/HEAD', 'info/exclude')))
 	return func(directory, path)
 
+
 def ignore_event(path, name):
 	# Ignore changes to the index.lock file, since they happen frequently and
 	# dont indicate an actual change in the working tree status
 	return False
 	return path.endswith('.git') and name == 'index.lock'
+
 
 try:
 	import pygit2 as git

@@ -7,8 +7,7 @@ from powerline.lib import mergedicts, parsedotval
 def mergeargs(argvalue):
 	if not argvalue:
 		return None
-	argvalue = iter(argvalue)
-	r = dict([next(argvalue)])
+	r = {}
 	for subval in argvalue:
 		mergedicts(r, dict([subval]))
 	return r
@@ -38,6 +37,13 @@ class ShellPowerline(Powerline):
 		else:
 			return super(ShellPowerline, self).get_config_paths()
 
+	def get_local_themes(self, local_themes):
+		if not local_themes:
+			return {}
+
+		return dict(((key, {'config': self.load_theme_config(val)})
+					for key, val in local_themes.items()))
+
 
 def get_argparser(parser=None, *args, **kwargs):
 	if not parser:
@@ -54,7 +60,7 @@ def get_argparser(parser=None, *args, **kwargs):
 	p.add_argument('-c', '--config', metavar='KEY.KEY=VALUE', action='append')
 	p.add_argument('-t', '--theme_option', metavar='THEME.KEY.KEY=VALUE', action='append')
 	p.add_argument('-p', '--config_path', metavar='PATH')
-	p.add_argument('-R', '--renderer_arg', metavar='KEY="VAL"', type=lambda a: dict([parsedotval(a)]))
+	p.add_argument('-R', '--renderer_arg', metavar='KEY=VAL', action='append')
 	return p
 
 
@@ -65,3 +71,5 @@ def finish_args(args):
 		args.theme_option = mergeargs((parsedotval(v) for v in args.theme_option))
 	else:
 		args.theme_option = {}
+	if args.renderer_arg:
+		args.renderer_arg = mergeargs((parsedotval(v) for v in args.renderer_arg))
